@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KPSEAS Wilkes Emergency Alerting System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #0b1320;
+            color: #ffffff;
+            user-select: none;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* MassAlert Windows / Touch Panel Aesthetic */
+        .massalert-window {
+            background: linear-gradient(180deg, #3c7fae 0%, #20507a 40%, #153c5e 100%);
+            border: 12px solid #141c24;
+            border-radius: 8px;
+            box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.25), 0 20px 40px rgba(0, 0, 0, 0.8);
+        }
+
+        .massalert-titlebar {
+            background: linear-gradient(180deg, #4c8ebc 0%, #255d88 100%);
+            border-bottom: 2px solid #10293f;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
+        }
+
+        /* Fast Access Action Buttons */
+        .fast-action-btn {
+            background: linear-gradient(180deg, #ffffff 0%, #e6f3fd 35%, #b6d9f7 70%, #95c6f0 100%);
+            border: 2px solid #4a82a9;
+            border-radius: 6px;
+            color: #0d2942;
+            font-weight: 800;
+            text-shadow: 0 1px 0 rgba(255,255,255,0.8);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 4px 6px rgba(0,0,0,0.3);
+            transition: all 0.1s ease;
+        }
+
+        .fast-action-btn:hover:not(:disabled) {
+            background: linear-gradient(180deg, #ffffff 0%, #f0f8ff 35%, #cae5fc 70%, #aadaff 100%);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,1), 0 6px 10px rgba(0,0,0,0.4);
+            transform: translateY(-1px);
+        }
+
+        .fast-action-btn:active:not(:disabled) {
+            background: linear-gradient(180deg, #8cbbe3 0%, #a6d1f7 100%);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+            transform: translateY(1px);
+        }
+
+        .fast-action-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            filter: grayscale(40%);
+        }
+
+        .fast-action-btn.btn-emergency {
+            background: linear-gradient(180deg, #ffefef 0%, #ffc5c5 35%, #f88686 70%, #e64545 100%);
+            color: #5c0000;
+            border-color: #aa2222;
+        }
+
+        .fast-action-btn.btn-emergency:hover:not(:disabled) {
+            background: linear-gradient(180deg, #ffffff 0%, #ffd8d8 35%, #fa9b9b 70%, #f05454 100%);
+        }
+
+        /* Strobe Animations */
+        @keyframes strobe-red {
+            0%, 100% { background-color: rgba(220, 38, 38, 0.95); box-shadow: 0 0 50px rgba(220, 38, 38, 0.8); }
+            50% { background-color: rgba(15, 23, 42, 0.9); box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); }
+        }
+
+        @keyframes strobe-amber {
+            0%, 100% { background-color: rgba(217, 119, 6, 0.95); box-shadow: 0 0 50px rgba(217, 119, 6, 0.8); }
+            50% { background-color: rgba(15, 23, 42, 0.9); box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); }
+        }
+
+        .animate-strobe-red { animation: strobe-red 0.6s infinite; }
+        .animate-strobe-amber { animation: strobe-amber 0.8s infinite; }
+
+        .scanline-effect {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.25) 51%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #152738; }
+        ::-webkit-scrollbar-thumb { background: #355e82; border-radius: 3px; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-3 md:p-6 bg-slate-950">
+
+    <!-- MASSALERT EMULATED DIRECTORY / MAIN SYSTEM WINDOW -->
+    <div class="max-w-6xl w-full massalert-window overflow-hidden flex flex-col relative">
+
+        <!-- TITLE BAR (Exact MassAlert Design) -->
+        <div class="massalert-titlebar px-4 py-2.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <i data-lucide="shield-alert" class="w-6 h-6 text-cyan-200"></i>
+                <h1 class="text-xl md:text-2xl font-bold tracking-wide text-white drop-shadow">
+                    Fast Access Actions
+                </h1>
+                <span class="hidden sm:inline text-xs font-mono bg-blue-950/80 text-cyan-300 px-2 py-0.5 rounded border border-blue-800">
+                    KPSEAS WILKES DISPATCH CONTROL
+                </span>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button title="System Status" class="w-7 h-7 bg-blue-900 border border-blue-700 rounded text-xs font-bold text-white flex items-center justify-center shadow">?</button>
+                <button title="Close Console" onclick="alert('Console session protected. Authenticate PIN to lock/unlock.')" class="w-8 h-7 bg-gradient-to-b from-blue-700 to-blue-950 border border-blue-900 rounded font-extrabold text-white text-xs flex items-center justify-center shadow hover:bg-red-800 transition-colors">
+                    X
+                </button>
+            </div>
+        </div>
+
+        <!-- AUTHENTICATION & OVERRIDE CONFIGURATION BAR -->
+        <div class="bg-slate-900/90 border-b border-blue-900/60 p-4 font-sans space-y-3">
+            <div class="flex flex-col lg:flex-row items-center justify-between gap-4">
+                
+                <!-- PIN Authentication Box -->
+                <div class="flex items-center gap-3 w-full lg:w-auto">
+                    <span class="text-xs font-bold uppercase text-slate-300 font-mono flex items-center gap-1.5">
+                        <i data-lucide="key-round" class="w-4 h-4 text-amber-400"></i>
+                        Admin PIN:
+                    </span>
+                    <input type="password" id="adminPinInput" maxlength="6" placeholder="Enter PIN (1111)" 
+                        class="bg-slate-950 border border-slate-700 rounded px-3 py-1.5 text-center font-mono text-base text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-400 w-36">
+                    <button id="authBtn" onclick="verifyPin()" 
+                        class="px-4 py-1.5 bg-blue-700 hover:bg-blue-600 border border-blue-500 rounded text-xs font-bold text-white transition-all shadow">
+                        Unlock Console
+                    </button>
+                    <span id="authStatusText" class="text-xs font-mono font-bold text-red-400 bg-red-950/60 border border-red-900 px-2 py-1 rounded">
+                        LOCKED
+                    </span>
+                </div>
+
+                <!-- Voice Selection & SAME Tones Checkbox -->
+                <div class="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-200">
+                    <!-- Pre-recorded Voice Radios -->
+                    <div class="flex items-center gap-3 bg-slate-950/80 px-3 py-1.5 rounded border border-slate-800">
+                        <span class="text-slate-400 text-[11px] font-mono">VOICE:</span>
+                        <label class="flex items-center gap-1.5 cursor-pointer">
+                            <input type="radio" name="ttsVoice" value="Paul" checked class="accent-cyan-500">
+                            <span>Paul</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer">
+                            <input type="radio" name="ttsVoice" value="CRS Tom" class="accent-cyan-500">
+                            <span>CRS Tom</span>
+                        </label>
+                    </div>
+
+                    <!-- EAS SAME Tones Checkbox -->
+                    <label class="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded border border-slate-800 cursor-pointer">
+                        <input type="checkbox" id="includeEasTones" checked class="w-4 h-4 accent-cyan-500 rounded">
+                        <span>Incorporate SAME Header & EOM Tones</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Target Overrides Bar -->
+            <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80 text-xs">
+                <div class="flex items-center gap-4">
+                    <span class="text-slate-400 font-mono text-[11px]">OVERRIDES:</span>
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input type="checkbox" id="overridePA" checked class="accent-cyan-500">
+                        <span>PA Systems</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input type="checkbox" id="overridePCs" checked class="accent-cyan-500">
+                        <span>Student/Teacher PCs</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input type="checkbox" id="overrideBeacons" checked class="accent-cyan-500">
+                        <span>CrisisAlert Beacons</span>
+                    </label>
+                </div>
+                <div class="text-[11px] font-mono text-cyan-400">
+                    ROUTING: <span class="text-slate-300">Teachers & Students set automatically as receivers</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN ACTION BUTTONS GRID (MassAlert Layout Match) -->
+        <div id="actionGrid" class="p-6 md:p-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 opacity-50 pointer-events-none transition-all duration-300">
+            
+            <!-- ROW 1 -->
+            <button onclick="dismissAlertModal()" class="fast-action-btn h-24 text-base tracking-wide flex items-center justify-center uppercase">
+                Cancel
+            </button>
+            <button onclick="triggerDirectAlert('LOCKDOWN')" class="fast-action-btn btn-emergency h-24 text-base tracking-wide flex items-center justify-center uppercase">
+                EMERGENCY
+            </button>
+            <button onclick="triggerDirectAlert('SIP')" class="fast-action-btn h-24 text-base tracking-wide flex items-center justify-center uppercase">
+                TOXIC RELEASE
+            </button>
+            <button onclick="triggerDirectAlert('SVR')" class="fast-action-btn h-24 text-base tracking-wide flex items-center justify-center uppercase">
+                LIGHTNING ALERT
+            </button>
+
+            <!-- ROW 2 -->
+            <button onclick="alert('Live PA Override Channel open.')" class="fast-action-btn h-24 text-base tracking-wide flex items-center justify-center uppercase">
+                LIVE PA
+            </button>
+            <button onclick="alert('Silent diagnostic test signal sent to beacons.')" class="fast-action-btn h-24 text-base tracking-wide flex items-center justify-center uppercase">
+                SILENT TEST
+            </button>
+            <button onclick="triggerDirectAlert('TEST')" class="fast-action-btn h-24 text-base tracking-wide flex items-center justify-center uppercase">
+                EMERGENCY TEST
+            </button>
+            <button onclick="triggerDirectAlert('TEST')" class="fast-action-btn h-24 text-base tracking-wide flex items-center justify-center uppercase">
+                TOXIC RELEASE TEST
+            </button>
+
+            <!-- ROW 3 -->
+            <button onclick="alert('All Clear signal broadcasted across campus.')" class="fast-action-btn h-24 text-base tracking-wide flex items-center justify-center uppercase">
+                ALL CLEAR
+            </button>
+            <button onclick="alert('Lightning All Clear signal broadcasted.')" class="fast-action-btn h-24 text-base tracking-wide flex items-center justify-center uppercase">
+                LIGHTNING ALL CLEAR
+            </button>
+            <button onclick="triggerDirectAlert('TEST')" class="fast-action-btn h-24 text-base tracking-wide flex items-center justify-center uppercase">
+                WEEKLY TEST
+            </button>
+
+            <!-- ADDITIONAL KPSEAS EVENT TILES -->
+            <button onclick="triggerDirectAlert('TOR')" class="fast-action-btn btn-emergency h-24 text-base tracking-wide flex items-center justify-center uppercase">
+                TORNADO WARNING
+            </button>
+            <button onclick="triggerDirectAlert('FFW')" class="fast-action-btn h-24 text-base tracking-wide flex items-center justify-center uppercase">
+                FLASH FLOOD
+            </button>
+        </div>
+
+        <!-- SYSTEM FOOTER & AUDIO PATH INFORMATION -->
+        <div class="bg-slate-950/90 border-t border-blue-950 p-4 text-xs font-mono flex flex-col md:flex-row items-center justify-between gap-3">
+            <div class="space-y-1 text-slate-400">
+                <div><span class="text-slate-500">Active SAME Header:</span> <code id="pathSameHeader" class="text-amber-400">./audio/tones/same_header.mp3</code></div>
+                <div><span class="text-slate-500">Active Voice Track:</span> <code id="pathVoiceTrack" class="text-amber-400">./audio/paul/tornado_warning.mp3</code></div>
+                <div><span class="text-slate-500">Active EOM Tone:</span> <code id="pathEom" class="text-amber-400">./audio/tones/eom.mp3</code></div>
+            </div>
+
+            <!-- AUDIT MINI LOG -->
+            <div class="w-full md:w-auto min-w-[280px] bg-slate-900 p-2.5 rounded border border-slate-800 text-[11px]">
+                <div class="text-slate-400 font-bold mb-1 flex items-center justify-between">
+                    <span>DISPATCH AUDIT LOG</span>
+                    <span id="logCount" class="text-cyan-400">1 Entry</span>
+                </div>
+                <div id="latestLogEntry" class="text-slate-300 truncate font-mono">
+                    System initialized & diagnostic test logged.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- FULL-SCREEN ALERT OVERRIDE MODAL (Simulates Student/Teacher PC & Beacons) -->
+    <!-- ========================================================================= -->
+    <div id="alertModal" class="fixed inset-0 bg-slate-950/95 z-50 hidden flex flex-col justify-between p-6 md:p-12 overflow-hidden">
+        <div class="scanline-effect"></div>
+
+        <!-- STROBE BEACON SIMULATION BAR -->
+        <div id="beaconStrobeBar" class="absolute top-0 left-0 right-0 h-4 bg-red-600 transition-all"></div>
+
+        <!-- MODAL HEADER -->
+        <div class="relative z-10 flex justify-between items-start border-b-2 border-red-600 pb-4">
+            <div class="flex items-center gap-4">
+                <div class="p-3 bg-red-600 text-white rounded-lg animate-bounce">
+                    <i data-lucide="triangle-alert" class="w-10 h-10"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl md:text-4xl font-extrabold tracking-wider text-red-500 font-mono uppercase" id="modalAlertTitle">
+                        EMERGENCY ALERT SYSTEM
+                    </h2>
+                    <p class="text-sm md:text-base text-slate-300 font-semibold" id="modalAlertSubtitle">
+                        KPSEAS WILKES BROADCAST OVERRIDE IN EFFECT
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex flex-col items-end gap-2">
+                <span class="bg-red-950 text-red-300 border border-red-700 font-mono text-xs px-3 py-1 rounded font-bold animate-pulse">
+                    RECEIVER LOCKDOWN ACTIVE
+                </span>
+                <span class="text-xs text-slate-400 font-mono" id="modalTimestamp"></span>
+            </div>
+        </div>
+
+        <!-- MODAL MAIN CONTENT -->
+        <div class="relative z-10 my-auto grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
+            
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-slate-900/90 border-2 border-red-600/80 rounded-xl p-6 shadow-2xl backdrop-blur-md">
+                    <div class="text-xs font-mono text-amber-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                        <i data-lucide="volume-2" class="w-4 h-4"></i>
+                        Pre-Recorded Voice Track: <span id="modalVoiceName" class="text-white"></span>
+                    </div>
+                    <p id="modalAlertText" class="text-lg md:text-2xl font-bold text-slate-100 leading-relaxed font-mono">
+                        -- PRE-RECORDED MESSAGE PLAYBACK ACTIVE --
+                    </p>
+                </div>
+
+                <div class="flex flex-wrap gap-2 text-xs font-mono">
+                    <span id="tagPA" class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-slate-300">PA OVERRIDE: INACTIVE</span>
+                    <span id="tagPCs" class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-slate-300">PC DISPLAY OVERRIDE: INACTIVE</span>
+                    <span id="tagBeacons" class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-slate-300">BEACON LIGHTS: INACTIVE</span>
+                </div>
+            </div>
+
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-6 flex flex-col items-center justify-center gap-4 text-center">
+                <h3 class="text-xs font-mono text-slate-400 uppercase">Pre-Recorded Audio Playback Status</h3>
+                
+                <div class="w-full bg-slate-950 rounded-lg border border-slate-800 p-4 space-y-3">
+                    <div class="flex items-center justify-between text-xs font-mono">
+                        <span class="text-slate-400">Audio Track:</span>
+                        <span id="activeAudioStatus" class="text-emerald-400 font-bold">PLAYING...</span>
+                    </div>
+
+                    <div class="flex items-end justify-center gap-1.5 h-20 w-full px-2">
+                        <div class="w-2 bg-red-600 rounded-t h-1/4 animate-pulse"></div>
+                        <div class="w-2 bg-red-500 rounded-t h-1/2 animate-pulse"></div>
+                        <div class="w-2 bg-red-600 rounded-t h-3/4 animate-pulse"></div>
+                        <div class="w-2 bg-red-400 rounded-t h-full animate-pulse"></div>
+                        <div class="w-2 bg-red-500 rounded-t h-2/3 animate-pulse"></div>
+                        <div class="w-2 bg-red-600 rounded-t h-1/3 animate-pulse"></div>
+                        <div class="w-2 bg-red-500 rounded-t h-4/5 animate-pulse"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL FOOTER -->
+        <div class="relative z-10 flex flex-col sm:flex-row items-center justify-between border-t border-slate-800 pt-4 gap-4">
+            <div class="text-xs text-slate-400 font-mono flex items-center gap-2">
+                <i data-lucide="radio" class="w-4 h-4 text-red-500"></i>
+                KPSEAS Emergency Broadcast Transmitter #0182 - Wilkes County
+            </div>
+            
+            <button onclick="dismissAlertModal()" 
+                class="w-full sm:w-auto px-8 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 font-bold rounded-lg transition-all font-mono text-sm">
+                CANCEL / SILENCE ALERTS
+            </button>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        let isAuthenticated = false;
+        const ADMIN_PIN = "1111";
+        let activeEventKey = "TOR";
+
+        const preRecordedAudios = {
+            sameHeader: new Audio(),
+            voicePlayback: new Audio(),
+            eomTone: new Audio()
+        };
+
+        const AUDIO_PATH_MAP = {
+            tones: {
+                sameHeader: "./audio/tones/same_header.mp3",
+                eom: "./audio/tones/eom.mp3"
+            },
+            voices: {
+                Paul: {
+                    TOR: "Tornado Warning (Paul Voice).wav",
+                    SVR: "./audio/paul/severe_thunderstorm.mp3",
+                    FFW: "./audio/paul/flash_flood.mp3",
+                    SIP: "./audio/paul/shelter_in_place.mp3",
+                    LOCKDOWN: "./audio/paul/lockdown_active_threat.mp3",
+                    TEST: "Reqired Test (Paul).wav"
+                },
+                "CRS Tom": {
+                    TOR: "./audio/tom/tornado_warning.mp3",
+                    SVR: "./audio/tom/severe_thunderstorm.mp3",
+                    FFW: "./audio/tom/flash_flood.mp3",
+                    SIP: "./audio/tom/shelter_in_place.mp3",
+                    LOCKDOWN: "./audio/tom/lockdown_active_threat.mp3",
+                    TEST: "./audio/tom/required_weekly_test.mp3"
+                }
+            }
+        };
+
+        const EVENT_DATA = {
+            "TOR": {
+                title: "TORNADO WARNING",
+                subtitle: "NATIONAL WEATHER SERVICE / EMERGENCY LOCKDOWN",
+                text: "THE NATIONAL WEATHER SERVICE HAS ISSUED A TORNADO WARNING FOR WILKES COUNTY. TAKE SHELTER IMMEDIATELY IN INTERIOR ROOMS ON THE LOWEST FLOOR AWAY FROM WINDOWS.",
+                severity: "strobe-red"
+            },
+            "SVR": {
+                title: "SEVERE THUNDERSTORM WARNING",
+                subtitle: "NATIONAL WEATHER SERVICE ALERT",
+                text: "A SEVERE THUNDERSTORM WARNING IS IN EFFECT FOR THE WILKES CAMPUS AREA. DANGEROUS HIGH WINDS AND LIGHTNING APPROACHING. REMAIN INDOORS.",
+                severity: "strobe-amber"
+            },
+            "FFW": {
+                title: "FLASH FLOOD WARNING",
+                subtitle: "LOCAL EMERGENCY ADVISORY",
+                text: "FLASH FLOOD WARNING IN EFFECT. AVOID LOW-LYING GROUND AND EXTERIOR CAMPUS ACCESS ROADS.",
+                severity: "strobe-amber"
+            },
+            "SIP": {
+                title: "SHELTER-IN-PLACE ORDER",
+                subtitle: "CAMPUS SAFETY ADVISORY",
+                text: "ATTENTION ALL PERSONNEL: SHELTER IN PLACE HAS BEEN ORDERED FOR WILKES DISTRICT CAMPUS. REMAIN IN CLASSROOMS AND SECURE ALL DOORS.",
+                severity: "strobe-amber"
+            },
+            "LOCKDOWN": {
+                title: "LOCKDOWN - ACTIVE THREAT",
+                subtitle: "CRITICAL EMERGENCY - IMMEDIATE ACTION REQUIRED",
+                text: "EMERGENCY LOCKDOWN! ACTIVE THREAT REPORTED ON CAMPUS. INITIATE SECURE ROOM LOCKDOWN PROCEDURES IMMEDIATELY. RUN, HIDE, FIGHT.",
+                severity: "strobe-red"
+            },
+            "TEST": {
+                title: "REQUIRED WEEKLY TEST",
+                subtitle: "KPSEAS EMERGENCY BROADCAST SYSTEM TEST",
+                text: "THIS IS A TEST OF THE KPSEAS WILKES EMERGENCY ALERTING SYSTEM. THIS IS ONLY A TEST. IF THIS HAD BEEN AN ACTUAL EMERGENCY, INSTRUCTIONS WOULD FOLLOW.",
+                severity: "strobe-amber"
+            }
+        };
+
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons();
+            updateAudioPathDisplays();
+
+            document.querySelectorAll('input[name="ttsVoice"]').forEach(radio => {
+                radio.addEventListener("change", updateAudioPathDisplays);
+            });
+            document.getElementById("includeEasTones")?.addEventListener("change", updateAudioPathDisplays);
+        });
+
+        function getSelectedAudioPaths() {
+            const selectedVoice = document.querySelector('input[name="ttsVoice"]:checked')?.value || "Paul";
+            const hasSameTones = document.getElementById("includeEasTones")?.checked ?? true;
+
+            const voicePath = AUDIO_PATH_MAP.voices[selectedVoice][activeEventKey];
+            const samePath = hasSameTones ? AUDIO_PATH_MAP.tones.sameHeader : "[DISABLED]";
+            const eomPath = hasSameTones ? AUDIO_PATH_MAP.tones.eom : "[DISABLED]";
+
+            return { voicePath, samePath, eomPath, hasSameTones };
+        }
+
+        function updateAudioPathDisplays() {
+            const paths = getSelectedAudioPaths();
+            const sameEl = document.getElementById("pathSameHeader");
+            const voiceEl = document.getElementById("pathVoiceTrack");
+            const eomEl = document.getElementById("pathEom");
+
+            if (sameEl) sameEl.innerText = paths.samePath;
+            if (voiceEl) voiceEl.innerText = paths.voicePath;
+            if (eomEl) eomEl.innerText = paths.eomPath;
+        }
+
+        function verifyPin() {
+            const inputPin = document.getElementById("adminPinInput").value.trim();
+            const statusText = document.getElementById("authStatusText");
+            const actionGrid = document.getElementById("actionGrid");
+
+            if (inputPin === ADMIN_PIN) {
+                isAuthenticated = true;
+                statusText.innerText = "UNLOCKED";
+                statusText.className = "text-xs font-mono font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-900 px-2 py-1 rounded";
+                actionGrid.classList.remove("opacity-50", "pointer-events-none");
+            } else {
+                isAuthenticated = false;
+                statusText.innerText = "INVALID PIN";
+                statusText.className = "text-xs font-mono font-bold text-red-400 bg-red-950/60 border border-red-900 px-2 py-1 rounded animate-pulse";
+            }
+        }
+
+        document.getElementById("adminPinInput")?.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") verifyPin();
+        });
+
+        function playPreRecordedAudioSequence() {
+            stopAudio();
+
+            const paths = getSelectedAudioPaths();
+            const statusEl = document.getElementById("activeAudioStatus");
+
+            preRecordedAudios.voicePlayback.src = paths.voicePath;
+
+            if (paths.hasSameTones) {
+                preRecordedAudios.sameHeader.src = paths.samePath;
+                preRecordedAudios.eomTone.src = paths.eomPath;
+
+                statusEl.innerText = "PLAYING SAME HEADER TONES...";
+                preRecordedAudios.sameHeader.currentTime = 0;
+                
+                preRecordedAudios.sameHeader.play().catch(e => {
+                    console.log("SAME Header playback deferred/waiting for file:", paths.samePath);
+                    // If SAME header audio file is missing, automatically proceed to voice playback
+                    playVoiceTrackDirectly(statusEl);
+                });
+
+                preRecordedAudios.sameHeader.onended = () => {
+                    playVoiceTrackDirectly(statusEl);
+                };
+
+                preRecordedAudios.voicePlayback.onended = () => {
+                    statusEl.innerText = "PLAYING EOM TONE...";
+                    preRecordedAudios.eomTone.currentTime = 0;
+                    preRecordedAudios.eomTone.play().catch(e => {
+                        console.log("EOM Tone playback deferred/waiting for file:", paths.eomPath);
+                        statusEl.innerText = "BROADCAST COMPLETE (STANDBY)";
+                    });
+                };
+
+                preRecordedAudios.eomTone.onended = () => {
+                    statusEl.innerText = "BROADCAST COMPLETE (STANDBY)";
+                };
+
+            } else {
+                playVoiceTrackDirectly(statusEl);
+
+                preRecordedAudios.voicePlayback.onended = () => {
+                    statusEl.innerText = "BROADCAST COMPLETE (STANDBY)";
+                };
+            }
+        }
+
+        function playVoiceTrackDirectly(statusEl) {
+            statusEl.innerText = "PLAYING PRE-RECORDED AUDIO FILE...";
+            preRecordedAudios.voicePlayback.currentTime = 0;
+            preRecordedAudios.voicePlayback.play().catch(e => {
+                console.log("Voice audio playback waiting/blocked:", preRecordedAudios.voicePlayback.src, e);
+            });
+        }
+
+        function stopAudio() {
+<!-- ... existing code -->
